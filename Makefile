@@ -66,6 +66,9 @@ export SYS_ARCH
 export TARGET_ARCH
 export HOST_TRIPPLE
 
+# Docker command
+DOCKER_CMD := docker
+
 # Source-code paths of the sysbox binary targets.
 SYSRUNC_DIR     := sysbox-runc
 SYSFS_DIR       := sysbox-fs
@@ -176,7 +179,7 @@ help:
 
 ##@ Building targets
 
-DOCKER_SYSBOX_BLD := docker run --privileged --rm --runtime=runc      \
+DOCKER_SYSBOX_BLD := $(DOCKER_CMD) run --privileged --rm --runtime=runc      \
 			--hostname sysbox-build                       \
 			--name sysbox-build                           \
 			-e SYS_ARCH=$(SYS_ARCH)                       \
@@ -188,7 +191,7 @@ DOCKER_SYSBOX_BLD := docker run --privileged --rm --runtime=runc      \
 			$(KERNEL_HEADERS_MOUNTS) \
 			$(TEST_IMAGE)
 
-DOCKER_SYSBOX_BLD_FLATCAR := docker run --privileged --rm --runtime=runc      \
+DOCKER_SYSBOX_BLD_FLATCAR := $(DOCKER_CMD) run --privileged --rm --runtime=runc      \
 			--hostname sysbox-build                       \
 			--name sysbox-build                           \
 			-e ARCH=$(ARCH)                               \
@@ -289,7 +292,7 @@ uninstall: ## Uninstall all sysbox binaries (requires root privileges)
 #
 
 # For batch targets
-DOCKER_RUN := docker run --privileged --rm --runtime=runc             \
+DOCKER_RUN := $(DOCKER_CMD) run --privileged --rm --runtime=runc             \
 			--hostname sysbox-test                        \
 			--name sysbox-test                            \
 			-v $(CURDIR):$(PROJECT)                       \
@@ -303,7 +306,7 @@ DOCKER_RUN := docker run --privileged --rm --runtime=runc             \
 			$(TEST_IMAGE)
 
 # For interactive targets
-DOCKER_RUN_TTY := docker run -it --privileged --rm --runtime=runc         \
+DOCKER_RUN_TTY := $(DOCKER_CMD) run -it --privileged --rm --runtime=runc         \
 			--hostname sysbox-test                        \
 			--name sysbox-test                            \
 			-v $(CURDIR):$(PROJECT)                       \
@@ -318,7 +321,7 @@ DOCKER_RUN_TTY := docker run -it --privileged --rm --runtime=runc         \
 
 # Must use "--cgroups private" as otherwise the inner Docker may get confused
 # when configured with the systemd cgroup driver.
-DOCKER_RUN_SYSTEMD := docker run -d --rm --runtime=runc --privileged  \
+DOCKER_RUN_SYSTEMD := $(DOCKER_CMD) run -d --rm --runtime=runc --privileged  \
 			--hostname sysbox-test                        \
 			--name sysbox-test                            \
 			--cgroupns private                            \
@@ -334,8 +337,8 @@ DOCKER_RUN_SYSTEMD := docker run -d --rm --runtime=runc --privileged  \
 			--mount type=tmpfs,destination=/run/lock      \
 			$(TEST_SYSTEMD_IMAGE)
 
-DOCKER_EXEC := docker exec -it sysbox-test
-DOCKER_STOP := docker stop -t0 sysbox-test
+DOCKER_EXEC := $(DOCKER_CMD) exec -it sysbox-test
+DOCKER_STOP := $(DOCKER_CMD) stop -t0 sysbox-test
 
 ##@ Testing targets
 
@@ -361,7 +364,7 @@ test-sysbox-systemd: test-prereq test-img-systemd
 	@printf "\n** Running sysbox integration tests (with systemd) **\n\n"
 	$(TEST_DIR)/scr/testContainerPre $(TEST_VOL1) $(TEST_VOL2) $(TEST_VOL3)
 	$(DOCKER_RUN_SYSTEMD)
-	docker exec sysbox-test /bin/bash -c "export PHY_EGRESS_IFACE_MTU=$(EGRESS_IFACE_MTU) && \
+	$(DOCKER_CMD) exec sysbox-test /bin/bash -c "export PHY_EGRESS_IFACE_MTU=$(EGRESS_IFACE_MTU) && \
 		testContainerInit && make test-sysbox-local TESTPATH=$(TESTPATH)"
 	$(DOCKER_STOP)
 
@@ -370,7 +373,7 @@ test-sysbox-installer: test-prereq test-img-systemd
 	@printf "\n** Running sysbox integration tests (with systemd + the sysbox installer) **\n\n"
 	$(TEST_DIR)/scr/testContainerPre $(TEST_VOL1) $(TEST_VOL2) $(TEST_VOL3)
 	$(DOCKER_RUN_SYSTEMD)
-	docker exec sysbox-test /bin/bash -c "export PHY_EGRESS_IFACE_MTU=$(EGRESS_IFACE_MTU) && \
+	$(DOCKER_CMD) exec sysbox-test /bin/bash -c "export PHY_EGRESS_IFACE_MTU=$(EGRESS_IFACE_MTU) && \
 		export SB_INSTALLER=true SB_PACKAGE=$(PACKAGE) SB_PACKAGE_FILE=$(PACKAGE_FILE_PATH)/$(PACKAGE_FILE_NAME) && \
 		testContainerInit && \
 		make test-sysbox-local TESTPATH=$(TESTPATH) && \
@@ -410,18 +413,18 @@ test-shell-systemd: test-prereq test-img-systemd
 	$(eval DOCKER_ENV := -e PHY_EGRESS_IFACE_MTU=$(EGRESS_IFACE_MTU))
 	$(TEST_DIR)/scr/testContainerPre $(TEST_VOL1) $(TEST_VOL2) $(TEST_VOL3)
 	$(DOCKER_RUN_SYSTEMD)
-	docker exec $(DOCKER_ENV) sysbox-test make sysbox-runc-recvtty
-	docker exec $(DOCKER_ENV) sysbox-test testContainerInit
-	docker exec -it $(DOCKER_ENV) sysbox-test /bin/bash
+	$(DOCKER_CMD) exec $(DOCKER_ENV) sysbox-test make sysbox-runc-recvtty
+	$(DOCKER_CMD) exec $(DOCKER_ENV) sysbox-test testContainerInit
+	$(DOCKER_CMD) exec -it $(DOCKER_ENV) sysbox-test /bin/bash
 	$(DOCKER_STOP)
 
 test-shell-systemd-debug: test-img-systemd
 	$(eval DOCKER_ENV := -e PHY_EGRESS_IFACE_MTU=$(EGRESS_IFACE_MTU) -e DEBUG_ON=true)
 	$(TEST_DIR)/scr/testContainerPre $(TEST_VOL1) $(TEST_VOL2) $(TEST_VOL3)
 	$(DOCKER_RUN_SYSTEMD)
-	docker exec $(DOCKER_ENV) sysbox-test make sysbox-runc-recvtty
-	docker exec $(DOCKER_ENV) sysbox-test testContainerInit
-	docker exec -it $(DOCKER_ENV) sysbox-test /bin/bash
+	$(DOCKER_CMD) exec $(DOCKER_ENV) sysbox-test make sysbox-runc-recvtty
+	$(DOCKER_CMD) exec $(DOCKER_ENV) sysbox-test testContainerInit
+	$(DOCKER_CMD) exec -it $(DOCKER_ENV) sysbox-test /bin/bash
 	$(DOCKER_STOP)
 
 test-shell-installer: ## Get a shell in the test container that includes systemd and the sysbox installer (useful for debug)
@@ -431,9 +434,9 @@ test-shell-installer: test-prereq test-img-systemd
 		-e SB_PACKAGE_FILE=$(PACKAGE_FILE_PATH)/$(PACKAGE_FILE_NAME))
 	$(TEST_DIR)/scr/testContainerPre $(TEST_VOL1) $(TEST_VOL2) $(TEST_VOL3)
 	$(DOCKER_RUN_SYSTEMD)
-	docker exec $(DOCKER_ENV) sysbox-test make sysbox-runc-recvtty
-	docker exec $(DOCKER_ENV) sysbox-test testContainerInit
-	docker exec -it $(DOCKER_ENV) sysbox-test /bin/bash
+	$(DOCKER_CMD) exec $(DOCKER_ENV) sysbox-test make sysbox-runc-recvtty
+	$(DOCKER_CMD) exec $(DOCKER_ENV) sysbox-test testContainerInit
+	$(DOCKER_CMD) exec -it $(DOCKER_ENV) sysbox-test /bin/bash
 	$(DOCKER_STOP)
 
 test-shell-installer-debug: test-prereq test-img-systemd
@@ -443,9 +446,9 @@ test-shell-installer-debug: test-prereq test-img-systemd
 		-e DEBUG_ON=true)
 	$(TEST_DIR)/scr/testContainerPre $(TEST_VOL1) $(TEST_VOL2) $(TEST_VOL3)
 	$(DOCKER_RUN_SYSTEMD)
-	docker exec $(DOCKER_ENV) sysbox-test make sysbox-runc-recvtty
-	docker exec $(DOCKER_ENV) sysbox-test testContainerInit
-	docker exec -it $(DOCKER_ENV) sysbox-test /bin/bash
+	$(DOCKER_CMD) exec $(DOCKER_ENV) sysbox-test make sysbox-runc-recvtty
+	$(DOCKER_CMD) exec $(DOCKER_ENV) sysbox-test testContainerInit
+	$(DOCKER_CMD) exec -it $(DOCKER_ENV) sysbox-test /bin/bash
 	$(DOCKER_STOP)
 
 test-prereq:
@@ -457,21 +460,21 @@ endif
 test-img: ## Build test container image
 test-img:
 	@printf "\n** Building the test container **\n\n"
-	@cd $(TEST_DIR) && docker build -t $(TEST_IMAGE) \
+	@cd $(TEST_DIR) && $(DOCKER_CMD) build -t $(TEST_IMAGE) \
 		--build-arg sys_arch=$(SYS_ARCH) --build-arg target_arch=$(TARGET_ARCH) \
 		-f Dockerfile.$(IMAGE_BASE_DISTRO)-$(IMAGE_BASE_RELEASE) .
 
 test-img-systemd: ## Build test container image that includes systemd
 test-img-systemd: test-img
 	@printf "\n** Building the test container image (includes systemd) **\n\n"
-	@cd $(TEST_DIR) && docker build -t $(TEST_SYSTEMD_IMAGE) \
+	@cd $(TEST_DIR) && $(DOCKER_CMD) build -t $(TEST_SYSTEMD_IMAGE) \
 		--build-arg sys_arch=$(SYS_ARCH) --build-arg target_arch=$(TARGET_ARCH) \
 		-f $(TEST_SYSTEMD_DOCKERFILE) .
 
 test-img-flatcar: ## Build test container image for Flatcar
 test-img-flatcar:
 	@printf "\n** Building the test container for Flatcar **\n\n"
-	@cd $(TEST_DIR) && docker build -t $(TEST_IMAGE_FLATCAR) \
+	@cd $(TEST_DIR) && $(DOCKER_CMD) build -t $(TEST_IMAGE_FLATCAR) \
 		--build-arg arch=$(SYS_ARCH) --build-arg target_arch=$(TARGET_ARCH) \
 		--build-arg FLATCAR_VERSION=$(FLATCAR_VERSION) \
 		-f Dockerfile.flatcar .
